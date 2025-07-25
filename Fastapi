@@ -1,0 +1,49 @@
+from sklearn.datasets import fetch_california_housing
+import pandas as pd
+data = fetch_california_housing()
+df = pd.DataFrame(data.data, columns=data.feature_names)
+df['Target'] = data.target
+df.head()
+
+
+from sklearn.model_selection import train_test_split
+X = df.drop('Target', axis=1)
+y = df['Target']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestRegressor
+import pickle
+pipeline = Pipeline([
+    ('scaler', StandardScaler()),
+    ('model', RandomForestRegressor())
+])
+pipeline.fit(X_train, y_train)
+
+
+with open("model.pkl", "wb") as f:
+    pickle.dump(pipeline, f)
+
+print("✅ Model saved as model.pkl")
+
+
+
+
+from flask import Flask, request, jsonify
+import pickle
+import numpy as np
+app = Flask(__name__)
+model = pickle.load(open('model.pkl', 'rb'))
+@app.route('/')
+def home():
+    return '🏠 House Price Predictor API'
+@app.route('/predict', methods=['POST'])
+def predict():
+    data = request.get_json(force=True)
+    features = np.array(data['features']).reshape(1, -1)
+    prediction = model.predict(features)
+    return jsonify({'predicted_price': prediction[0]})
+if __name__ == '__main__':
+    app.run(debug=True)
